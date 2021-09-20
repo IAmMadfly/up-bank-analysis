@@ -1,4 +1,8 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, ipcRenderer } from 'electron'
+import { IpcMainEvent } from 'electron/main'
+
+import { IPCMessage } from './bridge'
+import handle_message, { setSender } from './message_handler'
 
 let mainWindow: BrowserWindow | null
 
@@ -23,6 +27,8 @@ function createWindow () {
     }
   })
 
+  setSender(mainWindow.webContents);
+
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY)
 
   mainWindow.on('closed', () => {
@@ -34,9 +40,18 @@ async function registerListeners () {
   /**
    * This comes from bridge integration, check bridge.ts
    */
-  ipcMain.on('message', (_, message) => {
-    console.log(message)
+  ipcMain.on('message', (event: IpcMainEvent, message: IPCMessage) => {
+    handle_message(event, message);
   })
+
+  ipcMain.on(
+    'removeListener',
+    (
+      event: IpcMainEvent,
+      message: {event: string, callback: (...args: any[]) => void}) => {
+        ipcRenderer.removeListener(message.event, message.callback);
+      }
+    )
 }
 
 app.on('ready', createWindow)
