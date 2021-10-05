@@ -1,13 +1,14 @@
 import { Main } from 'electron'
 import { IpcRendererEvent } from 'electron/renderer'
-import { useState, useEffect, useMemo, Dispatch, SetStateAction } from 'react'
+import { useState, useEffect, useRef } from 'react'
 // import { ipcRenderer } from 'electron'
 
 export default function () {
   const [userName, setUserName] = useState('')
   const [userToken, setUserToken] = useState('')
   const [textColour, setTextColour] = useState('#fff')
-  const [userData, setUserData]: [Array<any>, Dispatch<SetStateAction<Array<any>>>] = useState(new Array());
+  const userNameInput = useRef(null);
+  const userTokenInput = useRef(null);
 
   useEffect(() => {
     let callback_ids: Array<string> = new Array();
@@ -15,20 +16,11 @@ export default function () {
       window.Main.on(
         'new_user_response', 
         (_: IpcRendererEvent, successful: boolean) => {
+          window.Main.sendMessage({name: 'user_names_request', data: null});
           setTextColour(successful ? '#0f0' : '#f00')
         }
       )
     );
-    callback_ids.push(
-      window.Main.on(
-        'user_names_response',
-        (_: IpcRendererEvent, names: Array<string>) => {
-          setUserData(names);
-        }
-      )
-    );
-
-    window.Main.sendMessage({name: 'user_names_request', data: null});
 
     return () => {
       for (let id of callback_ids) {
@@ -52,27 +44,15 @@ export default function () {
     })
   }
 
-
-  function getUserElements() {
-    let elements: JSX.Element[] = new Array();
-
-    for (let user of userData) {
-      elements.push(
-        <div>
-          <span>{user.name}</span>
-          <button onClick={()=>{window.Main.sendMessage({name: 'remove_user_request', data: user.id })}}>⛔</button>
-        </div>
-      );
-    }
-
-    return elements;
-  }
-
   return (
     <div>
-      <div>
+      <div style={{
+        display: "flex", 
+        justifyContent: "center", 
+        marginTop: "1rem"}}>
         <label style={textStyle}>User Name</label>
         <input
+          ref={userNameInput}
           onChange={ent => {
             setUserName(ent.currentTarget.value)
           }}
@@ -82,9 +62,13 @@ export default function () {
           type="text"
         />
       </div>
-      <div>
-        <label>User Token</label>
+      <div style={{
+        display: "flex", 
+        justifyContent: "center"
+        }}>
+        <label style={textStyle} >User Token</label>
         <input
+          ref={userTokenInput}
           onChange={ent => {
             setUserToken(ent.currentTarget.value)
           }}
@@ -94,17 +78,20 @@ export default function () {
           type="text"
         />
       </div>
-      <div>
+      <div style={{
+        display: "flex", 
+        justifyContent: "center"
+        }}>
         <button
+          style={{
+            margin: "1rem"
+          }}
           onClick={() => {
             createNewUser()
           }}
         >
           Submit
         </button>
-      </div>
-      <div>
-        {getUserElements()}
       </div>
     </div>
   )
