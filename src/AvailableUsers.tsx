@@ -1,8 +1,12 @@
-import { Main } from 'electron'
+// import { Main } from 'electron'
 import { IpcRendererEvent } from 'electron/renderer'
 import { useState, useEffect, Dispatch, SetStateAction } from 'react'
 
-export default function () {
+interface Arguments {
+  setUserId: Dispatch<SetStateAction<null>> | Dispatch<SetStateAction<number>>
+}
+
+export default function ({setUserId}: Arguments) {
     
     const [userData, setUserData]: [
         Array<any>,
@@ -41,15 +45,17 @@ export default function () {
                 width: "40%"
                 }}>
               <button onClick={
-              ()=>{window.Main.sendMessage(
-                {name: 'remove_user_request', data: user.id })
+              ()=>{
+                setUserId(user.id);
               }
               }
               >👍</button>
               <span>{user.name}</span>
               <button onClick={
-                  ()=>{window.Main.sendMessage(
-                      {name: 'remove_user_request', data: user.id })
+                  ()=>{
+                    window.Main.sendMessage(
+                      {name: 'remove_user_request', data: user.id }
+                      )
                     }
                   }
                   >⛔</button>

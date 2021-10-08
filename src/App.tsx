@@ -1,44 +1,45 @@
 import { GlobalStyle } from './styles/GlobalStyle'
 import { useState } from 'react'
-import { BrowserRouter as Router, Switch, Route } from 'react-router-dom'
 
 import NewUserInput from './components/NewUserInput'
-import AvailableUsers from './components/AvailableUsers'
+import AvailableUsers from './AvailableUsers'
+import UserInfoHome from './components/UserInfoHome'
+import { SetStateAction, Dispatch } from 'hoist-non-react-statics/node_modules/@types/react'
+
+type ReactNullNumberState = [
+  SetStateAction<null> |
+  SetStateAction<number>, 
+  Dispatch<SetStateAction<null>> | 
+  Dispatch<SetStateAction<number>>
+];
 
 export function App() {
 
-  const [userId, setUserId] = useState(null)
+  const [userId, setUserId]: ReactNullNumberState = useState(null);
 
   const NewUser = () => {
     return (
       <div>
         <GlobalStyle />
         <NewUserInput />
-        <AvailableUsers />
+        <AvailableUsers setUserId={setUserId} />
       </div>
     )
   }
 
-  const UserInformation = () => {
-    return (
-      <div>
-        <p>User information</p>
-      </div>
-    )
+  const isUserChosen = () => {
+    if (userId) {
+      return (<UserInfoHome userId={userId} />)
+    } else {
+      return (<NewUser />)
+    }
   }
-
-  console.log("URL:", window.location)
 
   return (
     <>
-      <Router>
-        <Route exact path="/main_window" >
-          <NewUser/>
-        </Route>
-        {/* <Route exact path="/userinfo">
-          <UserInformation/>
-        </Route> */}
-      </Router>
+      {
+        isUserChosen()
+      }
     </>
   )
 }

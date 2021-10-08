@@ -29,10 +29,20 @@ function create_new_user(name: string, token: string) {
   }
 }
 
+function handle_getting_user_information(message: IPCMessage) {
+
+}
+
 export default function handle_message(event: IpcMainEvent, message: IPCMessage) {
   switch (message.name) {
   case 'log':
     console.log(message.data);
+    break;
+  case 'user_information_request':
+    event.reply(
+      'user_information_response',
+      handle_getting_user_information(message)
+      );
     break;
   case 'new_user':
     event.reply(
