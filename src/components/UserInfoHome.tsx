@@ -1,6 +1,4 @@
 import { useEffect, SetStateAction } from 'react'
-import dayjs from 'dayjs'
-
 
 interface Arguments {
     userId: SetStateAction<null | number>
@@ -15,9 +13,13 @@ export default function ({userId} : Arguments) {
                 dateType:   'accounts'
             }
         })
+
+        let listener = window.Main.on("user_information_response", (_event, accountInfo) => {
+            console.log("Got account info:", accountInfo);
+        })
         
         return () => {
-            
+            window.Main.off(listener);
         }
     }, [])
 

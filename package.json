@@ -21,6 +21,7 @@
     "react-dom": "17.0.2",
     "react-hot-loader": "4.13.0",
     "styled-components": "5.3.0",
+    "up-bank-api": "file:../up-bank-api",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
