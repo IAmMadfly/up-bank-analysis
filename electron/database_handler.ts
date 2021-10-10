@@ -7,6 +7,7 @@ import { CategoryResource, ListTransactionsResponse, PaginationLinks, UpApi } fr
 let userPrep = 
 `CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY,
+    name STRING NOT NULL,
     token STRING NOT NULL
 )`;
 let accountsPrep = 
@@ -14,6 +15,7 @@ let accountsPrep =
     id TEXT PRIMARY KEY,
     user_id INTEGER NOT NULL,
     name TEXT NOT NULL,
+    deleted INTEGER DEFAULT 0,
     type TEXT,
     balance REAL,
     created INTEGER,
@@ -108,8 +110,9 @@ class UserHandler {
                 throw Error("Up Bank API inaccessable");
             } else {
                 this.update_accounts();
-                this.update_categories();
-                this.update_transactions().then(() => console.log("COMPLETED TRANSACTIONNS UPDATE"));
+                this.update_categories().then(() => {
+                    this.update_transactions();
+                });
             }
         });
     }
@@ -196,24 +199,33 @@ class UserHandler {
         console.log("UPDATING TRANSACTIONS");
         let page = 1;
         let self = this;
-        async function update_database(transactions: ListTransactionsResponse) {
+        function update_database(transactions: ListTransactionsResponse) {
             console.log("Updating transactions, page:", page++);
 
             for (let transaction of transactions.data) {
-                self.handler.db.prepare(`INSERT OR IGNORE INTO transactions (
-                    id, account_id, description, message, amount, created, settled, category_id, link
-                ) VALUES (?,?,?,?,?,?,?,?,?)`
-                ).run(
-                    transaction.id,
-                    transaction.relationships.account.data.id,
-                    transaction.attributes.description,
-                    transaction.attributes.message,
-                    parseFloat(transaction.attributes.amount.value),
-                    (new Date(transaction.attributes.createdAt)).getTime(),
-                    (new Date(transaction.attributes.settledAt)).getTime(),
-                    transaction.relationships.category.data?.id,
-                    transaction.links.self
-                );
+                try {
+                    self.handler.db.prepare(`INSERT OR IGNORE INTO transactions (
+                        id, account_id, description, message, amount, created, settled, category_id, link
+                    ) VALUES (?,?,?,?,?,?,?,?,?)`
+                    ).run(
+                        transaction.id,
+                        transaction.relationships.account.data.id,
+                        transaction.attributes.description,
+                        transaction.attributes.message,
+                        parseFloat(transaction.attributes.amount.value),
+                        (new Date(transaction.attributes.createdAt)).getTime(),
+                        (new Date(transaction.attributes.settledAt)).getTime(),
+                        transaction.relationships.category.data?.id,
+                        transaction.links.self
+                    );
+                } catch (err) {
+                    console.log(
+                        "Failed to add to SQLite database with error:",
+                        err,
+                        "and data:",
+                        JSON.stringify(transaction)
+                    );
+                }
             }
         }
 
