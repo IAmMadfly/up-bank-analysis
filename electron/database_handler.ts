@@ -1,8 +1,7 @@
 import Database from 'better-sqlite3';
-import { ThemeConsumer } from 'styled-components';
 import { ListAccountResponse } from 'up-bank-api';
-import { ListCategoriesRequest } from 'up-bank-api';
-import { CategoryResource, ListTransactionsResponse, PaginationLinks, UpApi } from 'up-bank-api'
+import { CategoryResource, ListTransactionsResponse, PaginationLinks, UpApi } from 'up-bank-api';
+import dayjs, { Dayjs } from 'dayjs';
 
 let userPrep = 
 `CREATE TABLE IF NOT EXISTS users (
@@ -22,6 +21,15 @@ let accountsPrep =
     link TEXT,
     FOREIGN KEY(user_id) REFERENCES users(id)
 )`;
+
+export interface AccountData {
+    id:         string,
+    name:       string,
+    deleted:    boolean,
+    type:       string,
+    balance:    number,
+    created:    Dayjs
+}
 let categoriesPrep = 
 `CREATE TABLE IF NOT EXISTS categories (
     id TEXT PRIMARY KEY,
@@ -93,7 +101,7 @@ export default class DatabaseHandler {
     }
 }
 
-class UserHandler {
+export class UserHandler {
     userId:     number
     handler:    DatabaseHandler
     api:        UpApi
@@ -108,13 +116,30 @@ class UserHandler {
             if (res.meta.statusEmoji !== '⚡️') {
                 console.log("API unaccessable 😭");
                 throw Error("Up Bank API inaccessable");
-            } else {
-                this.update_accounts();
-                this.update_categories().then(() => {
-                    this.update_transactions();
-                });
             }
         });
+    }
+
+    public update() {
+        this.update_accounts();
+        this.update_categories();
+        this.update_transactions();
+    }
+
+    /**
+     * name
+     */
+    public get_account_data(): Array<AccountData> {
+        let rawData = this.handler.db.prepare(`SELECT id, name, deleted,
+            type, balance, created
+            FROM accounts WHERE user_id = ?`).all(this.userId);
+
+        for (let i=0; i<rawData.length; i++) {
+            rawData[i].deleted = rawData[i].deleted ? true : false;
+            rawData[i].created = dayjs(rawData[i].created);
+        }
+
+        return rawData;
     }
 
     get_token(): string {
@@ -147,12 +172,14 @@ class UserHandler {
         console.log("UPDATING ACCOUNT");
         this.api.accounts.list().then((res: ListAccountResponse) => {
             for (let account of res.data) {
+                console.log("Got account:", account.id);
                 this.handler.db.prepare(`
                     INSERT OR IGNORE INTO accounts 
-                    (id, name, type, balance, created, link)
-                    VALUES(?, ?, ?, ?, ?, ?)
+                    (id, user_id, name, type, balance, created, link)
+                    VALUES(?, ?, ?, ?, ?, ?, ?)
                 `).run(
                     account.id,
+                    this.userId,
                     account.attributes.displayName,
                     account.attributes.accountType.toString(),
                     parseFloat(account.attributes.balance.value),
@@ -160,8 +187,6 @@ class UserHandler {
                     account.links.self
                 );
             }
-
-            return;
         });
     }
 
@@ -203,6 +228,25 @@ class UserHandler {
             console.log("Updating transactions, page:", page++);
 
             for (let transaction of transactions.data) {
+                let exists: boolean = self.handler.db
+                    .prepare('SELECT name FROM accounts WHERE id = ?')
+                    .get(transaction.id)? true : false;
+            
+                if (!exists) {
+                    self.handler.db.prepare(`INSERT OR IGNORE INTO accounts (
+                        id,
+                        user_id,
+                        name,
+                        deleted,
+                        type
+                    ) VALUES (?, ?, ?, ?, ?)`).run(
+                        transaction.relationships.account.data.id,
+                        self.userId,
+                        "DELETED ACCOUNT",
+                        1,
+                        "SAVER"
+                    )
+                }
                 try {
                     self.handler.db.prepare(`INSERT OR IGNORE INTO transactions (
                         id, account_id, description, message, amount, created, settled, category_id, link
@@ -222,7 +266,7 @@ class UserHandler {
                     console.log(
                         "Failed to add to SQLite database with error:",
                         err,
-                        "and data:",
+                        "\nand data:\n",
                         JSON.stringify(transaction)
                     );
                 }

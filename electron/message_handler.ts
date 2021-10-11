@@ -2,10 +2,10 @@ import { ipcMain, WebContents } from 'electron';
 import { IpcMainEvent } from 'electron/main';
 
 import { IPCMessage } from './bridge';
-import DatabaseHandler from './database_handler';
+import DatabaseHandler, { UserHandler } from './database_handler';
 
 let db = new DatabaseHandler();
-let currentUser = null;
+let currentUser: null | UserHandler = null;
 
 let webContents: WebContents | null;
 
@@ -22,19 +22,18 @@ function create_new_user(name: string, token: string) {
   }
 }
 
-function handle_getting_user_information(message: IPCMessage) {
-  currentUser = db.get_user_handler(message.data.userId);
-}
-
 export default function handle_message(event: IpcMainEvent, message: IPCMessage) {
   switch (message.name) {
   case 'log':
     console.log(message.data);
     break;
+  case 'set_user_event':
+    currentUser = db.get_user_handler(message.data);
+    break;
   case 'user_information_request':
     event.reply(
       'user_information_response',
-      handle_getting_user_information(message)
+      currentUser?.get_account_data()
       );
     break;
   case 'new_user':
